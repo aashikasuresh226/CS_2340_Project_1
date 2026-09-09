@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demo — GT Movies Store</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root{
+  --bg:        #090c12;
+  --bg-elev:   #0f131b;
+  --panel:     rgba(255,255,255,0.045);
+  --panel-brd: rgba(255,255,255,0.09);
+  --text:      #e9edf5;
+  --text-dim:  #8d96a8;
+  --cyan:      #48d1ff;
+  --violet:    #a86bff;
+  --line:      rgba(255,255,255,0.09);
+
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'IBM Plex Sans', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --maxw: 1180px;
+  --edge: clamp(1.25rem, 4vw, 3.5rem);
+}
+
+*, *::before, *::after{ box-sizing: border-box; }
+html{ scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce){
+  html{ scroll-behavior: auto; }
+  *, *::before, *::after{ animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+
+body{
+  margin:0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+a{ color: inherit; }
+img{ max-width:100%; display:block; }
+
+h1,h2,h3{
+  font-family: var(--font-display);
+  line-height: 1.05;
+  margin: 0 0 0.45em;
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+h1{ font-size: clamp(2.6rem, 7vw, 5rem); }
+h2{ font-size: clamp(1.9rem, 4.5vw, 2.9rem); }
+h3{ font-size: clamp(1.2rem, 2.6vw, 1.5rem); font-weight:600; }
+
+p{ max-width: 62ch; color: var(--text-dim); }
+.lede{ font-size: 1.12rem; color: var(--text); max-width: 56ch; }
+
+:focus-visible{ outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+.container{ max-width: var(--maxw); margin: 0 auto; padding: 0 var(--edge); }
+
+/* ============ AURORA BACKGROUND (multi-blob, always moving) ============ */
+.aurora{
+  position: fixed;
+  inset: -10%;
+  z-index: -4;
+  overflow: hidden;
+  pointer-events: none;
+  filter: blur(70px);
+  opacity: 0.6;
+}
+.blob{
+  position:absolute;
+  border-radius:50%;
+  mix-blend-mode: screen;
+}
+.blob-a{
+  width:440px; height:440px; top:-8%; left:-6%;
+  background: radial-gradient(circle, rgba(72,209,255,0.55), transparent 70%);
+  animation: blob-a-move 26s ease-in-out infinite;
+}
+.blob-b{
+  width:500px; height:500px; top:22%; right:-14%;
+  background: radial-gradient(circle, rgba(168,107,255,0.5), transparent 70%);
+  animation: blob-b-move 32s ease-in-out infinite;
+}
+.blob-c{
+  width:400px; height:400px; bottom:-16%; left:32%;
+  background: radial-gradient(circle, rgba(255,84,112,0.32), transparent 70%);
+  animation: blob-c-move 24s ease-in-out infinite;
+}
+@keyframes blob-a-move{ 0%,100%{ transform: translate(0,0); } 50%{ transform: translate(70px,90px); } }
+@keyframes blob-b-move{ 0%,100%{ transform: translate(0,0); } 50%{ transform: translate(-80px,60px); } }
+@keyframes blob-c-move{ 0%,100%{ transform: translate(0,0); } 50%{ transform: translate(60px,-70px); } }
+
+/* ============ FLOATING FILM ICONS ============ */
+.film-icons{
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.ico{
+  position: absolute;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  animation-name: floaty;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+@keyframes floaty{
+  0%{ transform: translate(0,0) rotate(0deg); }
+  50%{ transform: translate(20px,-26px) rotate(8deg); }
+  100%{ transform: translate(0,0) rotate(0deg); }
+}
+
+/* ============ FILM GRAIN TEXTURE ============ */
+.grain{
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* ============ PHOTO LAYER (drop in a real photo any time) ============ */
+/* To use a real photo: set --photo-url on <body style="--photo-url:url('images/yourphoto.jpg')">
+   It stays invisible until a URL is set — no broken-image icon if you skip it. */
+.photo-layer{
+  position: fixed;
+  inset: -6%;
+  z-index: -5;
+  background-image: var(--photo-url, none);
+  background-size: cover;
+  background-position: center;
+  filter: grayscale(0.4) contrast(1.1) brightness(0.55) blur(1px);
+  opacity: var(--photo-opacity, 0);
+  animation: ken-burns 40s ease-in-out infinite alternate;
+}
+.photo-layer::after{
+  content:"";
+  position:absolute; inset:0;
+  background:
+    linear-gradient(180deg, rgba(9,12,18,0.5), rgba(9,12,18,0.92)),
+    linear-gradient(100deg, rgba(72,209,255,0.18), rgba(168,107,255,0.18));
+}
+@keyframes ken-burns{
+  from{ transform: scale(1) translate(0,0); }
+  to{ transform: scale(1.12) translate(-1.5%, -1%); }
+}
+
+/* ============ PROJECTOR BEAM (rotating light sweep) ============ */
+.projector-beam{
+  position: fixed;
+  inset: -20%;
+  z-index: -3;
+  pointer-events: none;
+  background: conic-gradient(from 0deg at 22% 15%, transparent 0deg, rgba(72,209,255,0.09) 8deg, transparent 26deg, transparent 360deg);
+  animation: beam-rotate 50s linear infinite;
+  mix-blend-mode: screen;
+}
+@keyframes beam-rotate{
+  from{ transform: rotate(0deg); }
+  to{ transform: rotate(360deg); }
+}
+
+/* ============ VANTA BIRDS (ambient flocking background) ============ */
+.vanta-bg{
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+}
+
+/* ============ VHS SCANLINE OVERLAY ============ */
+.scanlines{
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.028) 0px,
+    rgba(255,255,255,0.028) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  animation: scan-drift 9s linear infinite;
+  mix-blend-mode: overlay;
+}
+@keyframes scan-drift{
+  from{ background-position: 0 0; }
+  to{ background-position: 0 120px; }
+}
+.scanlines::after{
+  content:"";
+  position:absolute; inset:0;
+  background: rgba(72,209,255,0.02);
+  animation: flicker 6s ease-in-out infinite;
+}
+@keyframes flicker{
+  0%, 92%, 100%{ opacity: 0; }
+  93%, 96%{ opacity: 1; }
+}
+
+/* REC indicator badge, VHS-style */
+.rec-badge{
+  display:inline-flex; align-items:center; gap:0.5em;
+  font-family: var(--font-mono); font-size:0.72rem; color: var(--text-dim);
+  letter-spacing: 0.04em;
+}
+.rec-badge .dot-rec{
+  width:8px; height:8px; border-radius:50%;
+  background: #ff5470;
+  box-shadow: 0 0 8px 2px rgba(255,84,112,0.7);
+  animation: rec-pulse 1.4s ease-in-out infinite;
+}
+@keyframes rec-pulse{
+  0%,100%{ opacity:1; } 50%{ opacity:0.35; }
+}
+
+/* ============ NAV — "NOW SHOWING" LISTING BOARD ============ */
+.site-header{
+  position: sticky; top:0; z-index:50;
+  background: rgba(9,12,18,0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+.nav{
+  max-width: var(--maxw); margin:0 auto; padding: 0.9rem var(--edge);
+  display:flex; align-items:center; justify-content:space-between;
+  gap: 1rem;
+}
+.brand{
+  font-family: var(--font-display);
+  font-size: 1.25rem; font-weight:700;
+  text-decoration:none;
+  display:flex; align-items:center; gap:0.5em;
+  flex-shrink:0;
+}
+.brand .dot{
+  width:8px; height:8px; border-radius:50%;
+  background: var(--cyan);
+  box-shadow: 0 0 10px 2px rgba(72,209,255,0.8);
+}
+.now-showing-label{
+  font-family: var(--font-mono); font-size:0.62rem; letter-spacing:0.14em;
+  color: var(--text-dim); display:flex; align-items:center; gap:0.5em;
+  border: 1px solid var(--panel-brd); border-radius:100px;
+  padding: 0.3em 0.7em; flex-shrink:0;
+}
+.now-showing-label .dot-rec{
+  width:6px; height:6px; border-radius:50%;
+  background: #ff5470; box-shadow: 0 0 6px 1px rgba(255,84,112,0.7);
+  animation: rec-pulse 1.4s ease-in-out infinite;
+}
+
+.nav-links{
+  display:flex; gap: clamp(0.6rem, 2vw, 1.1rem);
+  list-style:none; margin:0; padding:0;
+}
+.nav-links a{
+  text-decoration:none;
+  display:flex; flex-direction:column; gap:0.15rem;
+  padding: 0.4em 0.9em;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.nav-links a .listing-tag{
+  font-family: var(--font-mono); font-size:0.58rem; letter-spacing:0.1em;
+  color: var(--violet); text-transform:uppercase; opacity:0.85;
+}
+.nav-links a .listing-title{
+  font-family: var(--font-mono); font-size:0.8rem;
+}
+.nav-links a:hover{
+  color: var(--cyan);
+  border-color: var(--panel-brd);
+  background: var(--panel);
+}
+.nav-links a[aria-current="page"]{
+  color: var(--cyan);
+  border-color: rgba(72,209,255,0.35);
+  background: rgba(72,209,255,0.06);
+}
+.nav-links a[aria-current="page"] .listing-tag::before{ content:"\25B8 "; }
+
+.nav-toggle{ display:none; }
+
+@media (max-width: 720px){
+  .now-showing-label{ display:none; }
+  .nav-toggle{
+    display:block; background:none; border:1px solid var(--line);
+    color: var(--text); font-family: var(--font-mono); font-size:0.75rem;
+    padding: 0.4rem 0.7rem; border-radius:4px;
+  }
+  .nav-links{
+    position:absolute; top:100%; left:0; right:0;
+    flex-direction:column; gap:0;
+    background: var(--bg-elev);
+    border-bottom: 1px solid var(--line);
+    max-height:0; overflow:hidden;
+    transition: max-height 0.35s ease;
+  }
+  .nav-links.open{ max-height: 420px; }
+  /* full "now showing" listing rows on mobile: title ⋯⋯⋯⋯ tag, dot-leader style */
+  .nav-links a{
+    flex-direction:row; align-items:baseline; justify-content:space-between;
+    border-radius:0; border:0;
+    padding: 1rem var(--edge);
+    border-bottom: 1px dashed var(--line);
+    position:relative;
+  }
+  .nav-links a .listing-title{ order:1; font-size:0.95rem; color:var(--text); }
+  .nav-links a .listing-tag{ order:2; }
+  .nav-links a:hover, .nav-links a[aria-current="page"]{ background: var(--panel); }
+}
+
+/* ============ BUTTONS ============ */
+.btn{
+  display:inline-flex; align-items:center; gap:0.5em;
+  font-family: var(--font-mono); font-size:0.85rem;
+  padding: 0.85em 1.5em;
+  text-decoration:none;
+  border: 1px solid var(--panel-brd);
+  color: var(--text);
+  background: var(--panel);
+  border-radius: 8px;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.btn:hover{ border-color: var(--cyan); box-shadow: 0 0 20px -4px rgba(72,209,255,0.5); transform: translateY(-2px); }
+.btn.solid{ background: linear-gradient(135deg, var(--cyan), var(--violet)); color:#080a10; border-color:transparent; font-weight:600; }
+.btn.solid:hover{ box-shadow: 0 0 26px -2px rgba(168,107,255,0.6); }
+
+/* ============ HERO ============ */
+.hero{
+  padding: clamp(3rem,8vw,6rem) var(--edge) clamp(2rem,6vw,3rem);
+  max-width: var(--maxw); margin:0 auto;
+}
+.kicker{
+  font-family: var(--font-mono); font-size:0.8rem; color: var(--cyan);
+  display:inline-flex; align-items:center; gap:0.6em; margin-bottom:1.2em;
+  padding: 0.35em 0.8em;
+  border: 1px solid var(--panel-brd);
+  border-radius: 100px;
+  background: var(--panel);
+}
+.hero-grid{
+  display:grid; grid-template-columns: 1.3fr 0.9fr; gap: clamp(2rem,5vw,4rem);
+  align-items:center;
+}
+@media (max-width: 860px){ .hero-grid{ grid-template-columns: 1fr; } }
+
+/* ============ GLASS PANEL ============ */
+.glass{
+  background: var(--panel);
+  border: 1px solid var(--panel-brd);
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.glass-pad{ padding: 1.6rem; }
+
+/* Status card in hero */
+.status-card{ font-family: var(--font-mono); font-size:0.82rem; }
+.status-card .row{
+  display:flex; justify-content:space-between; gap:1rem;
+  padding: 0.6em 0; border-bottom: 1px dashed var(--line);
+  color: var(--text-dim);
+}
+.status-card .row:last-child{ border-bottom:none; }
+.status-card .row b{ color: var(--text); font-weight:500; }
+.status-card .row .ok{ color: var(--cyan); }
+
+/* ============ VHS TAPE SHELF (moving images) ============ */
+.shelf-wrap{
+  overflow:hidden;
+  padding: 1.8rem 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-elev);
+}
+.shelf{
+  display:flex;
+  width: max-content;
+  animation: shelf-scroll 36s linear infinite;
+}
+.shelf:hover{ animation-play-state: paused; }
+@keyframes shelf-scroll{
+  from{ transform: translateX(0); }
+  to{ transform: translateX(-50%); }
+}
+/* each .tape is a VHS cassette spine, standing upright like tapes on a shelf */
+.tape{
+  position:relative;
+  width: clamp(120px, 16vw, 150px);
+  aspect-ratio: 3/4.4;
+  margin: 0 9px;
+  border-radius: 6px;
+  background: linear-gradient(170deg, #171c26, var(--bg-elev));
+  border: 1px solid var(--panel-brd);
+  flex-shrink:0;
+  padding: 0.7rem 0.7rem 0.6rem;
+  display:flex; flex-direction:column; gap:0.5rem;
+  transition: border-color 0.25s ease, transform 0.25s ease;
+}
+.tape:hover{ border-color: var(--cyan); transform: translateY(-4px); }
+.tape .reel-window{
+  display:flex; justify-content:space-between;
+  padding: 0.2rem 0.35rem;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.tape .reel-window span{
+  width:16px; height:16px; border-radius:50%;
+  border: 2px solid var(--text-dim);
+  position:relative;
+}
+.tape .reel-window span::after{
+  content:"";
+  position:absolute; inset:5px;
+  border-radius:50%;
+  background: var(--text-dim);
+}
+.tape .tape-label{
+  flex:1;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  display:flex; align-items:center; justify-content:center;
+  writing-mode: vertical-rl;
+  font-family: var(--font-mono); font-size:0.66rem; color: var(--text-dim);
+  letter-spacing:0.04em;
+}
+.tape .tape-foot{
+  height:6px; border-radius:2px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid var(--line);
+}
+
+/* ============ SECTION ============ */
+.section{ padding: clamp(3rem,7vw,5.5rem) var(--edge); }
+.section-inner{ max-width: var(--maxw); margin:0 auto; }
+.section-head{ max-width: 640px; margin-bottom: 2.4rem; }
+
+/* ============ GRID ============ */
+.grid{ display:grid; gap: clamp(1.2rem, 3vw, 2rem); }
+.grid.cols-3{ grid-template-columns: repeat(3, 1fr); }
+.grid.cols-2{ grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 860px){ .grid.cols-3, .grid.cols-2{ grid-template-columns: 1fr; } }
+
+/* ============ APP SCREEN MOCKUP (project page) ============ */
+.device{
+  border-radius: 14px;
+  border: 1px solid var(--panel-brd);
+  background: var(--bg-elev);
+  padding: clamp(0.9rem, 2.5vw, 1.4rem);
+  box-shadow: 0 0 60px -20px rgba(72,209,255,0.25);
+}
+.device-bar{
+  display:flex; gap:6px; margin-bottom:0.9rem;
+}
+.device-bar span{ width:9px; height:9px; border-radius:50%; background: rgba(255,255,255,0.14); }
+.screen{
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  aspect-ratio: 16/10;
+  padding: 1rem;
+  display:flex; flex-direction:column; gap:0.6rem;
+}
+.screen .ui-bar{ height:20px; border-radius:5px; width:38%; background: rgba(255,255,255,0.08); }
+.screen .ui-line{ height:9px; border-radius:5px; background: rgba(255,255,255,0.08); }
+.screen .ui-block{ flex:1; border-radius:6px; background: linear-gradient(135deg, rgba(72,209,255,0.10), rgba(168,107,255,0.10)); border:1px solid var(--line); }
+.screen .ui-row{ display:flex; gap:0.6rem; flex:1; }
+.screen .ui-row > *{ flex:1; }
+
+/* code-style tag for tech spec labels */
+.tag{
+  display:inline-block; font-family: var(--font-mono); font-size:0.72rem;
+  color: var(--cyan); background: rgba(72,209,255,0.08);
+  border: 1px solid rgba(72,209,255,0.25);
+  padding: 0.3em 0.7em; border-radius: 6px; margin-bottom: 0.8em;
+}
+
+/* themed bullet list (project description, feature lists) */
+.bullet-list{
+  list-style:none; margin:0; padding:0;
+  display:flex; flex-direction:column; gap:0.5em;
+}
+.bullet-list li{
+  position:relative; padding-left:1.3em;
+  color: var(--text-dim);
+}
+.bullet-list li::before{
+  content:"\25B8";
+  position:absolute; left:0; top:0;
+  color: var(--cyan);
+}
+
+/* ============ LIVE APP EMBED (project page) ============ */
+.live-embed{
+  border-radius: 14px;
+  border: 1px solid var(--panel-brd);
+  background: var(--bg-elev);
+  padding: clamp(0.6rem, 2vw, 1rem);
+  box-shadow: 0 0 70px -20px rgba(72,209,255,0.28);
+}
+.live-embed .live-embed-bar{
+  display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  margin-bottom: 0.8rem; flex-wrap:wrap;
+}
+.live-embed .live-embed-frame{
+  position:relative;
+  aspect-ratio: 16/10;
+  background: #05070a;
+  border-radius: 8px;
+  overflow:hidden;
+  border: 1px solid var(--line);
+}
+.live-embed iframe{
+  width:100%; height:100%; border:0; background:#05070a;
+}
+.live-embed .embed-fallback{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.8rem;
+  text-align:center; padding: 1.5rem;
+  font-family: var(--font-mono); font-size:0.82rem; color: var(--text-dim);
+  background: var(--bg-elev);
+}
+
+/* ============ TIMELINE (process) ============ */
+.timeline{
+  position:relative;
+  padding-left: 2.2rem;
+}
+.timeline::before{
+  content:"";
+  position:absolute; left: 5px; top:6px; bottom:6px; width:2px;
+  background: linear-gradient(var(--cyan), var(--violet));
+  opacity:0.5;
+}
+.tl-step{ position:relative; padding-bottom: 2.8rem; }
+.tl-step:last-child{ padding-bottom:0; }
+.tl-step::before{
+  content:"";
+  position:absolute; left:-2.2rem; top:0.2rem;
+  width:12px; height:12px; border-radius:50%;
+  background: var(--bg);
+  border: 2px solid var(--cyan);
+  box-shadow: 0 0 10px 1px rgba(72,209,255,0.6);
+}
+.tl-step .tag{ margin-bottom:0.5em; }
+
+/* ============ VIDEO FRAME (demo page) ============ */
+.video-frame{
+  border-radius: 14px;
+  border: 1px solid var(--panel-brd);
+  background: var(--bg-elev);
+  padding: clamp(0.6rem, 2vw, 1rem);
+  box-shadow: 0 0 70px -20px rgba(168,107,255,0.3);
+}
+.screen-16x9{
+  aspect-ratio:16/9; background:#000;
+  border-radius: 8px;
+  overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+  border: 1px solid var(--line);
+}
+.screen-16x9 iframe{ width:100%; height:100%; border:0; }
+.play-placeholder{
+  font-family: var(--font-mono); color: var(--text-dim); font-size:0.85rem;
+  text-align:center; padding: 1rem;
+}
+.play-placeholder .tri{
+  width:0; height:0;
+  border-top: 13px solid transparent; border-bottom: 13px solid transparent;
+  border-left: 20px solid var(--cyan);
+  margin: 0 auto 0.8rem;
+  filter: drop-shadow(0 0 8px rgba(72,209,255,0.7));
+}
+
+/* ============ GRADIENT HEADLINE (home hero) ============ */
+.gradient-text{
+  background: linear-gradient(90deg, var(--cyan), var(--violet), #ff5470, var(--cyan));
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-shift 9s ease infinite;
+}
+@keyframes gradient-shift{
+  0%{ background-position: 0% 50%; }
+  50%{ background-position: 100% 50%; }
+  100%{ background-position: 0% 50%; }
+}
+
+/* ============ MARQUEE TICKER (home, playful movie-sign strip) ============ */
+.ticker-wrap{
+  overflow:hidden;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-elev);
+  padding: 0.65rem 0;
+}
+.ticker{
+  display:flex;
+  width: max-content;
+  gap: 3rem;
+  animation: ticker-scroll 24s linear infinite;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.09em;
+  color: var(--text-dim);
+}
+.ticker span{ white-space:nowrap; display:flex; align-items:center; gap:0.7em; }
+.ticker span::before{ content:"\25CF"; color: var(--cyan); font-size:0.6em; }
+@keyframes ticker-scroll{
+  from{ transform: translateX(0); }
+  to{ transform: translateX(-50%); }
+}
+
+/* ============ TILT CARD (home hero status card, hologram feel) ============ */
+.tilt-wrap{ perspective: 1000px; }
+.tilt-card{
+  transform-style: preserve-3d;
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+  will-change: transform;
+}
+.tilt-card:hover{ box-shadow: 0 20px 60px -20px rgba(72,209,255,0.35); }
+
+/* ============ BUTTON SHINE SWEEP ============ */
+.btn{ position:relative; overflow:hidden; }
+.btn::before{
+  content:"";
+  position:absolute; top:0; left:-60%; width:40%; height:100%;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.35), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.6s ease;
+  pointer-events:none;
+}
+.btn:hover::before{ left:120%; }
+
+/* ============ TWINKLE STARS (whimsical stage-light dots) ============ */
+.twinkle-field{
+  position: fixed; inset:0; z-index:-1; pointer-events:none; overflow:hidden;
+}
+.twinkle{
+  position:absolute;
+  width:3px; height:3px; border-radius:50%;
+  background: var(--cyan);
+  box-shadow: 0 0 6px 1px currentColor;
+  animation: twinkle-pulse 3.2s ease-in-out infinite;
+}
+@keyframes twinkle-pulse{
+  0%,100%{ opacity:0.15; transform:scale(0.8); }
+  50%{ opacity:0.9; transform:scale(1.3); }
+}
+
+/* ============ CURSOR SPARK TRAIL ============ */
+.spark{
+  position: fixed;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 60;
+  animation: spark-fade 0.7s ease-out forwards;
+}
+@keyframes spark-fade{
+  0%{ opacity:0.9; transform: scale(1) translateY(0); }
+  100%{ opacity:0; transform: scale(0.2) translateY(-14px); }
+}
+
+/* ============ FOOTER ============ */
+.site-footer{
+  border-top: 1px solid var(--line);
+  padding: 2.4rem var(--edge);
+  font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-dim);
+}
+.site-footer .container{ display:flex; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
+
+/* reveal-on-scroll — used once per page, and only ever adds a transform/opacity, never hides content if JS fails */
+.reveal{ opacity:0; transform: translateY(14px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.reveal.in{ opacity:1; transform:none; }
+/* safety net: if JS never runs, content still appears after a short delay */
+@media (scripting: none){ .reveal{ opacity:1; transform:none; } }
+
+</style>
+</head>
+<body>
+
+<div class="photo-layer" aria-hidden="true"></div>
+<div class="aurora" aria-hidden="true">
+  <span class="blob blob-a"></span>
+  <span class="blob blob-b"></span>
+  <span class="blob blob-c"></span>
+</div>
+<div class="projector-beam" aria-hidden="true"></div>
+<div id="vanta-bg" class="vanta-bg" aria-hidden="true"></div>
+<div class="film-icons" aria-hidden="true">
+  <svg class="ico" viewBox="0 0 64 64" style="top:8%; left:6%; width:70px; height:70px; color:var(--cyan); opacity:0.09; animation-duration:24s;"><circle cx="32" cy="32" r="26"/><circle cx="32" cy="14" r="5"/><circle cx="48" cy="24" r="5"/><circle cx="48" cy="42" r="5"/><circle cx="32" cy="50" r="5"/><circle cx="16" cy="42" r="5"/><circle cx="16" cy="24" r="5"/><circle cx="32" cy="32" r="4"/></svg>
+  <svg class="ico" viewBox="0 0 64 48" style="top:64%; left:88%; width:80px; height:60px; color:var(--violet); opacity:0.08; animation-duration:29s; animation-delay:-4s;"><rect x="4" y="14" width="56" height="30" rx="2"/><path d="M4 14 L60 14 M8 14 L14 4 M20 14 L26 4 M32 14 L38 4 M44 14 L50 4"/></svg>
+  <svg class="ico" viewBox="0 0 64 36" style="top:20%; left:80%; width:64px; height:36px; color:var(--cyan); opacity:0.08; animation-duration:20s; animation-delay:-9s;"><rect x="2" y="2" width="60" height="32" rx="4"/><line x1="44" y1="2" x2="44" y2="34" stroke-dasharray="3 3"/></svg>
+  <svg class="ico" viewBox="0 0 48 48" style="top:78%; left:14%; width:52px; height:52px; color:var(--violet); opacity:0.09; animation-duration:26s; animation-delay:-14s;"><circle cx="24" cy="24" r="20"/><path d="M19 15 L33 24 L19 33 Z"/></svg>
+  <svg class="ico" viewBox="0 0 24 64" style="top:38%; left:4%; width:26px; height:70px; color:var(--cyan); opacity:0.07; animation-duration:32s; animation-delay:-6s;"><rect x="1" y="1" width="22" height="62" rx="3"/><rect x="4" y="6" width="4" height="4"/><rect x="16" y="6" width="4" height="4"/><rect x="4" y="18" width="4" height="4"/><rect x="16" y="18" width="4" height="4"/><rect x="4" y="30" width="4" height="4"/><rect x="16" y="30" width="4" height="4"/><rect x="4" y="42" width="4" height="4"/><rect x="16" y="42" width="4" height="4"/><rect x="4" y="54" width="4" height="4"/><rect x="16" y="54" width="4" height="4"/></svg>
+  <svg class="ico" viewBox="0 0 64 64" style="top:6%; left:92%; width:56px; height:56px; color:var(--violet); opacity:0.07; animation-duration:22s; animation-delay:-11s;"><circle cx="32" cy="32" r="20"/><circle cx="32" cy="16" r="4"/><circle cx="44" cy="24" r="4"/><circle cx="44" cy="40" r="4"/><circle cx="32" cy="48" r="4"/><circle cx="20" cy="40" r="4"/><circle cx="20" cy="24" r="4"/></svg>
+  <svg class="ico" viewBox="0 0 64 48" style="top:46%; left:92%; width:64px; height:48px; color:var(--cyan); opacity:0.08; animation-duration:27s; animation-delay:-17s;"><rect x="4" y="12" width="56" height="32" rx="4"/><rect x="22" y="4" width="14" height="10" rx="2"/><circle cx="32" cy="28" r="10"/></svg>
+  <svg class="ico" viewBox="0 0 48 56" style="top:88%; left:76%; width:44px; height:52px; color:var(--violet); opacity:0.08; animation-duration:25s; animation-delay:-2s;"><path d="M10 16 L38 16 L34 52 L14 52 Z"/><path d="M10 16 L8 8 L14 12 L16 4 L22 10 L24 2 L26 10 L32 4 L34 12 L40 8 L38 16 Z"/></svg>
+  <svg class="ico" viewBox="0 0 24 24" style="top:30%; left:32%; width:34px; height:34px; color:var(--cyan); opacity:0.07; animation-duration:23s; animation-delay:-8s;"><path d="M12 2 L14.9 8.6 L22 9.3 L16.5 14 L18.2 21 L12 17.3 L5.8 21 L7.5 14 L2 9.3 L9.1 8.6 Z"/></svg>
+  <svg class="ico" viewBox="0 0 48 40" style="top:56%; left:64%; width:56px; height:46px; color:var(--violet); opacity:0.07; animation-duration:28s; animation-delay:-19s;"><path d="M6 24 A18 18 0 0 1 42 24"/><rect x="2" y="22" width="10" height="14" rx="4"/><rect x="36" y="22" width="10" height="14" rx="4"/></svg>
+</div>
+<div class="twinkle-field" aria-hidden="true">
+  <span class="twinkle" style="top:46%; left:23%; width:2px; height:2px; animation-delay:-1.94s; animation-duration:2.68s;"></span>
+  <span class="twinkle" style="top:51%; left:78%; width:2px; height:2px; animation-delay:-3.01s; animation-duration:3.41s; color:var(--violet);"></span>
+  <span class="twinkle" style="top:16%; left:59%; width:4px; height:4px; animation-delay:-1.86s; animation-duration:2.99s;"></span>
+  <span class="twinkle" style="top:12%; left:76%; width:2px; height:2px; animation-delay:-2.8s; animation-duration:2.96s; color:var(--violet);"></span>
+  <span class="twinkle" style="top:78%; left:78%; width:2px; height:2px; animation-delay:-1.93s; animation-duration:4.16s;"></span>
+  <span class="twinkle" style="top:76%; left:21%; width:2px; height:2px; animation-delay:-2.27s; animation-duration:2.83s; color:var(--violet);"></span>
+  <span class="twinkle" style="top:78%; left:43%; width:2px; height:2px; animation-delay:-1.41s; animation-duration:3.69s;"></span>
+  <span class="twinkle" style="top:79%; left:77%; width:2px; height:2px; animation-delay:-1.16s; animation-duration:3.2s; color:var(--violet);"></span>
+  <span class="twinkle" style="top:77%; left:11%; width:4px; height:4px; animation-delay:-1.22s; animation-duration:3.39s;"></span>
+  <span class="twinkle" style="top:45%; left:63%; width:3px; height:3px; animation-delay:-1.33s; animation-duration:3.33s; color:var(--violet);"></span>
+  <span class="twinkle" style="top:36%; left:27%; width:3px; height:3px; animation-delay:-0.96s; animation-duration:2.99s;"></span>
+  <span class="twinkle" style="top:72%; left:67%; width:3px; height:3px; animation-delay:-0.4s; animation-duration:3.77s; color:var(--violet);"></span>
+  <span class="twinkle" style="top:82%; left:13%; width:3px; height:3px; animation-delay:-2.82s; animation-duration:3.27s;"></span>
+  <span class="twinkle" style="top:24%; left:66%; width:2px; height:2px; animation-delay:-1.85s; animation-duration:4.14s; color:var(--violet);"></span>
+</div>
+<div class="scanlines" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="brand"><span class="dot"></span>gt.movies</a>
+    <span class="now-showing-label"><span class="dot-rec"></span>NOW SCREENING</span>
+    <button class="nav-toggle" aria-expanded="false" aria-label="Toggle menu">MENU</button>
+    <ul class="nav-links">
+      <li><a href="index.html"><span class="listing-tag">Now Showing</span><span class="listing-title">Home</span></a></li>
+      <li><a href="process.html"><span class="listing-tag">Making-Of</span><span class="listing-title">Process</span></a></li>
+      <li><a href="demo.html" aria-current="page"><span class="listing-tag">Feature</span><span class="listing-title">Demo</span></a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+
+  <section class="hero" style="padding-bottom:1rem;">
+    <span class="kicker">&#9679; SEE IT RUN</span>
+    <h1>Watch the<br>Demo</h1>
+    <p class="lede">Lorem ipsum dolor sit amet — swap the block below for your real demo video embed (YouTube, Vimeo, or a hosted file).</p>
+  </section>
+
+  <section class="section" style="padding-top:1rem;">
+    <div class="section-inner reveal">
+      <div class="video-frame">
+        <div class="screen-16x9">
+          <!--
+            Replace this placeholder with your real embed, e.g.:
+            <iframe src="https://www.youtube.com/embed/YOUR_VIDEO_ID" title="GT Movies Store demo" allowfullscreen></iframe>
+          -->
+          <div class="play-placeholder">
+            <div class="tri" aria-hidden="true"></div>
+            Video demo goes here — drop in your YouTube/Vimeo embed link.
+          </div>
+        </div>
+      </div>
+
+      <div class="grid cols-2" style="margin-top:2.4rem;">
+        <div class="glass glass-pad">
+          <span class="tag">what's covered</span>
+          <p style="margin-bottom:0;">Lorem ipsum placeholder — list the features you walk through in the video.</p>
+        </div>
+        <div class="glass glass-pad">
+          <span class="tag">more to explore</span>
+          <p style="margin-bottom:0;">Lorem ipsum placeholder — link to your GitHub repo, live app, or write-up.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <span>&copy; 2026 Aashika Suresh</span>
+    <span>GT Movies Store &middot; Django Capstone</span>
+  </div>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Mobile nav toggle
+  const toggle = document.querySelector('.nav-toggle');
+  const links = document.querySelector('.nav-links');
+  if (toggle && links) {
+    toggle.addEventListener('click', () => {
+      const open = links.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  }
+
+  // Reveal-on-scroll (used sparingly — one section per page)
+  const revealEls = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window && revealEls.length) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    revealEls.forEach(el => io.observe(el));
+  } else {
+    revealEls.forEach(el => el.classList.add('in'));
+  }
+
+  // Safety net: if IntersectionObserver never fires (e.g. element already
+  // in view on load but observer is slow), force reveal after a short delay
+  setTimeout(() => {
+    document.querySelectorAll('.reveal:not(.in)').forEach(el => el.classList.add('in'));
+  }, 1200);
+
+  // Parallax: aurora blobs and film icons drift opposite the cursor
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const blobs = document.querySelectorAll('.blob');
+  const icos = document.querySelectorAll('.ico');
+  if (!prefersReducedMotion && (blobs.length || icos.length)) {
+    let targetX = 0, targetY = 0, curX = 0, curY = 0;
+    window.addEventListener('mousemove', (e) => {
+      targetX = (e.clientX / window.innerWidth - 0.5) * 2;
+      targetY = (e.clientY / window.innerHeight - 0.5) * 2;
+    }, { passive: true });
+
+    function parallaxTick() {
+      curX += (targetX - curX) * 0.04;
+      curY += (targetY - curY) * 0.04;
+      blobs.forEach((b, i) => {
+        const depth = 10 + i * 6;
+        b.style.marginLeft = `${curX * depth}px`;
+        b.style.marginTop = `${curY * depth}px`;
+      });
+      icos.forEach((ic, i) => {
+        const depth = 6 + (i % 3) * 4;
+        ic.style.marginLeft = `${-curX * depth}px`;
+        ic.style.marginTop = `${-curY * depth}px`;
+      });
+      requestAnimationFrame(parallaxTick);
+    }
+    requestAnimationFrame(parallaxTick);
+  }
+
+  // Cursor spark trail — playful glowing dust following the pointer
+  if (!prefersReducedMotion) {
+    const SPARK_COLORS = ['#48d1ff', '#a86bff', '#ff5470'];
+    let lastSpark = 0;
+    window.addEventListener('mousemove', (e) => {
+      const now = performance.now();
+      if (now - lastSpark < 45) return;
+      lastSpark = now;
+      const s = document.createElement('div');
+      s.className = 'spark';
+      s.style.left = `${e.clientX + (Math.random() * 10 - 5)}px`;
+      s.style.top = `${e.clientY + (Math.random() * 10 - 5)}px`;
+      const color = SPARK_COLORS[Math.floor(Math.random() * SPARK_COLORS.length)];
+      s.style.background = color;
+      s.style.boxShadow = `0 0 8px 2px ${color}`;
+      document.body.appendChild(s);
+      setTimeout(() => s.remove(), 750);
+    }, { passive: true });
+  }
+
+  // 3D tilt on the hero status card — follows the cursor like a hologram
+  const tiltCard = document.querySelector('.tilt-card');
+  if (tiltCard && !prefersReducedMotion) {
+    tiltCard.addEventListener('mousemove', (e) => {
+      const rect = tiltCard.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width;
+      const py = (e.clientY - rect.top) / rect.height;
+      const rx = (py - 0.5) * -10;
+      const ry = (px - 0.5) * 10;
+      tiltCard.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+    });
+    tiltCard.addEventListener('mouseleave', () => {
+      tiltCard.style.transform = 'rotateX(0deg) rotateY(0deg)';
+    });
+  }
+});
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.birds.min.js"></script>
+<script>
+(function(){
+  var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var el = document.getElementById('vanta-bg');
+  if (prefersReduced || !el) {
+    if (el) el.style.display = 'none';
+    return;
+  }
+  if (window.VANTA && window.VANTA.BIRDS) {
+    window.VANTA.BIRDS({
+      el: "#vanta-bg",
+      mouseControls: true,
+      touchControls: true,
+      gyroControls: false,
+      minHeight: 200.00,
+      minWidth: 200.00,
+      scale: 1.00,
+      scaleMobile: 1.00,
+      backgroundAlpha: 0.0,
+      color1: 0x48d1ff,
+      color2: 0xa86bff,
+      colorMode: "varianceGradient",
+      birdSize: 1.30,
+      wingSpan: 26.00,
+      speedLimit: 4.50,
+      separation: 60.00,
+      alignment: 40.00,
+      cohesion: 40.00,
+      quantity: 3.00
+    });
+  }
+})();
+</script>
+</body>
+</html>
